@@ -17,6 +17,7 @@ class CardDeck {
     public:
         //goes through the suits and ranks and builds the deck from them
         int makeDeck() {
+            deck = {}; //clears the current deck
             std::string currentCard;
             for (char x : suits) {
                 for (char y : ranks) {
@@ -31,11 +32,20 @@ class CardDeck {
 
         //prints every card in the deck
         void printDeck() {
+            int i;
             for (std::string x : deck) {
-                std::cout << x << std::endl;
+                std::cout << x << " " << i << std::endl;
+                i++;
             }
         }
 
+        /**
+         * Function: drawRandomCards
+         * Parameters: int, number of cards you want to draw
+         * Description: Picks a specified number of random cards from the deck,
+         *      deletes them from the deck, and returns them.
+         * Outputs: A string vector of cards
+         */
         std::vector<std::string> drawRandomCards(int numberOfCards) {
             std::srand(time(nullptr));
             std::vector<std::string> output;
@@ -52,6 +62,12 @@ class CardDeck {
             }
             
             return output;
+        }
+
+        int shuffleDeck() {
+            std::vector<std::string> deckThatHasBeenShuffled = drawRandomCards(deck.size());
+            deck = deckThatHasBeenShuffled;
+            return 0;
         }
 };
 
@@ -204,11 +220,11 @@ int main() {
     std::vector<std::string> thirtyRandomCards = a.drawRandomCards(30);
     printCards(thirtyRandomCards);
     a.printDeck();
-    /* printCard("cQ");
-    printCard("d5");
-    printCard("sJ");
-    printCard("hA"); */
 
+    std::cout << "shuffling new deck..." << std::endl;
+    a.makeDeck();
+    a.shuffleDeck();
+    a.printDeck();
 
 
 
