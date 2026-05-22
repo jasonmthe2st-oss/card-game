@@ -1,8 +1,17 @@
 #include <iostream>
+#include <string>
+
+//these two for list handling
 #include <vector>
 #include <map>
+
+//for sqrt and pow
 #include <cmath>
-#include <string>
+
+//this for input validation
+#include <limits>
+
+//these two for time
 #include <stdlib.h>
 #include <ctime>
 
@@ -71,6 +80,12 @@ class CardDeck {
         }
 };
 
+struct GameValues {
+    std::vector<std::string> allGameCards;
+    std::vector<std::string> visibleCards;
+    std::vector<std::string> temporarilyVisibleCards;  
+};
+
 /**
  * Function: printCardChunk
  * Parameters: a card, and the row of the card you want it to print
@@ -78,20 +93,22 @@ class CardDeck {
  *      The printCards function draws this to build cards.
  *      You specify which of 5 parts of the card to print.
  */
-std::string printCardChunk(std::string cardToPrint, int rowToPrint) {
+std::string printCardChunk(std::string cardToPrint,  int rowToPrint) {
     char suit = cardToPrint.at(0);
     char rank = cardToPrint.at(1);
     std::map <char, std::string> suitMap = {
         {'c', "♣"},
         {'s', "♠"},
         {'h', "♥"},
-        {'d', "♦"}
+        {'d', "♦"},
+        {'n', "^"}
     };
     std::map <char, std::string> mouthMap = {
         {'c', "_"},
         {'s', "."},
         {'h', "w"},
-        {'d', "v"}
+        {'d', "v"},
+        {'n', "^"}
     };
     std::map <char, std::string> eyes = {
         {'1', "00"},
@@ -106,7 +123,8 @@ std::string printCardChunk(std::string cardToPrint, int rowToPrint) {
         {'J', "0-"},
         {'Q', ";;"},
         {'K', "$$"},
-        {'A', "=="}
+        {'A', "=="},
+        {'n', "^^"}
     };
 
     //Finds visual representations based on the suits matched to the maps above
@@ -209,25 +227,96 @@ void printCards(std::vector<std::string> cardsToPrint) {
     }
 }
 
+void printInterface(std::vector<std::string> gameBoard) {
+    std::cout << "\x1b[2J\x1b[H" << "Cards are counted from left to right, top to bottom." << std::endl;
+    printCards(gameBoard);
+    std::cout << std::endl;
+}
+
+//validates for integer between specified integer values, inclusive.
+//The last is a list of values it cannot be.
+int inputAndValidateForBoard(int minValue, int maxValue, std::vector<int> nopeValues) {
+    int userInput;
+    while (true) {
+        //checks for invalid integer
+        if (!(std::cin >> userInput)) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); //ignores some bullshit so it works
+            std::cout << "Input error! Try again: ";
+            continue;
+        }
+        //checks if integer is in valid range
+        if ((userInput < minValue) || (userInput > maxValue)) {
+            std::cout << "Input not in range! Try again: ";
+            continue;
+        }
+        for (int& x : nopeValues) {
+            if (userInput == x) {
+                std::cout << "You've already guessed that! Try again: ";
+                continue;
+            }
+        }
+        //if it's none of those, it's valid
+        break;
+    }
+    return userInput;
+}
+
 int main() {
     CardDeck a;
+    //initializes and creates the deck
     a.makeDeck();
-    a.printDeck();
 
-    std::cout << "Welcome! Please resize your terminal window to fit these cards: " << std::endl;
+    //makes game cards
+    std::vector<std::string> allGameCards = a.drawRandomCards(24);
+    //creates a separate vector named visibleCards which is set to back facing cards
+    std::vector<std::string> visibleCards;
+    for (std::string& x : allGameCards) {
+        visibleCards.push_back("nn");
+    }
 
+    int userInput;
+    std::vector<std::string> temporaryVisibility;
+    while (visibleCards != allGameCards) {
+        //sets temporary visibility to all visible cards
+        temporaryVisibility = visibleCards;
+        printInterface(visibleCards);
 
-    std::vector<std::string> thirtyRandomCards = a.drawRandomCards(30);
-    printCards(thirtyRandomCards);
-    a.printDeck();
+        //ask for first card to check
+        std::cout << "Enter your first card to check: ";
+        //gets user input. This is the index
+        const int firstCardIndex = (inputAndValidateForBoard(1, allGameCards.size(), {0}) - 1);
+        //Puts that card in temporary visibility
+        temporaryVisibility.at(firstCardIndex) = allGameCards.at(firstCardIndex);
+        printInterface(temporaryVisibility);
 
-    std::cout << "shuffling new deck..." << std::endl;
-    a.makeDeck();
-    a.shuffleDeck();
-    a.printDeck();
+        //ask for second card to check
+        std::cout << "Enter your second card to check: ";
+        //get user input.
+        const int secondCardIndex = (inputAndValidateForBoard(1, allGameCards.size(), {firstCardIndex}) - 1);
+        //puts that card in temporary visibility
+        temporaryVisibility.at(secondCardIndex) = allGameCards.at(secondCardIndex);
+        printInterface(temporaryVisibility);
 
+        //grabs the two cards
+        const std::string firstCard = allGameCards.at(firstCardIndex);
+        const std::string secondCard = allGameCards.at(secondCardIndex);
 
-
+        //compare the ranks of them. If they are the same, it says so.
+        if (firstCard.at(1) == secondCard.at(1)) {
+            //the user guessed right, so the values will be copied to the visible cards.
+            visibleCards.at(firstCardIndex) = firstCard;
+            visibleCards.at(secondCardIndex) = secondCard;
+            std::cout << "It's a match! Press any key to continue: ";
+        } else {
+            std::cout << "Not a match. Press any key to continue: ";
+        }
+        //ignores the last input and stalls the screen until the user types
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::string dummyInput = "";
+            std::getline(std::cin, dummyInput);
+            std::cout << '\n';
+    }
     return 0;
 }
 
