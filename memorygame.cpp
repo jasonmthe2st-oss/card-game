@@ -1,3 +1,15 @@
+/**
+ * File: memorygame.cpp
+ * Description: Creates a memory matching game using visual representations of a 52-card deck.
+ * Date: 24 May 2026
+ * TODO:
+ *      1. Make the random generation always winnable
+ *          (currently, there can be cards with no matches)
+ *      2. Add a title screen and menu asking how many cards
+ *      3. Create a better way of picking cards
+ *          (the numbered system does not work very well. An ordered pair system would be nice)
+ */
+
 #include <iostream>
 #include <string>
 
@@ -20,8 +32,8 @@ class CardDeck {
     private:
         //if you want a funky ass deck of cards, you can just add more suits or ranks in this list
         //dont forget to also make visuals for your card in the printCard function!
-        char suits[4] = {'c', 's', 'h', 'd'};
-        char ranks[13] = {'1', '2', '3', '4', '5', '6', '7', '8', '9', 'J', 'Q', 'K', 'A'};
+        const char suits[4] = {'c', 's', 'h', 'd'};
+        const char ranks[13] = {'1', '2', '3', '4', '5', '6', '7', '8', '9', 'J', 'Q', 'K', 'A'};
         std::vector<std::string> deck;
     public:
         //goes through the suits and ranks and builds the deck from them
@@ -41,8 +53,8 @@ class CardDeck {
 
         //prints every card in the deck
         void printDeck() {
-            int i;
-            for (std::string x : deck) {
+            int i = 0;
+            for (std::string& x : deck) {
                 std::cout << x << " " << i << std::endl;
                 i++;
             }
@@ -83,7 +95,9 @@ class CardDeck {
 struct GameValues {
     std::vector<std::string> allGameCards;
     std::vector<std::string> visibleCards;
-    std::vector<std::string> temporarilyVisibleCards;  
+    std::vector<std::string> temporarilyVisibleCards;
+    std::vector<int> revealedCardIndexes;
+    
 };
 
 /**
@@ -227,15 +241,25 @@ void printCards(std::vector<std::string> cardsToPrint) {
     }
 }
 
-void printInterface(std::vector<std::string> gameBoard) {
+/**
+ * Function: printInterface
+ * Parameters: An object of GameValues
+ * Description: Clears the screen, displays a menu, and runs the function to draw the playing field. 
+ */
+void printInterface(GameValues& playerdata) {
     std::cout << "\x1b[2J\x1b[H" << "Cards are counted from left to right, top to bottom." << std::endl;
-    printCards(gameBoard);
+    printCards(playerdata.temporarilyVisibleCards);
     std::cout << std::endl;
 }
 
-//validates for integer between specified integer values, inclusive.
-//The last is a list of values it cannot be.
-int inputAndValidateForBoard(int minValue, int maxValue, std::vector<int> nopeValues) {
+/**
+ * Function: inputAndValidateForBoard
+ * Parameters: int minimum value, int maximum value, object of GameValues
+ * Description: Takes user input for an integer and checks for validity.
+ *      Then, it checks if it's within the specified values.
+ *      Then, it checks if that value has already been guessed.
+ */
+int inputAndValidateForBoard(const int minValue, const int maxValue, GameValues& playerdata) {
     int userInput;
     while (true) {
         //checks for invalid integer
@@ -250,72 +274,99 @@ int inputAndValidateForBoard(int minValue, int maxValue, std::vector<int> nopeVa
             std::cout << "Input not in range! Try again: ";
             continue;
         }
-        for (int& x : nopeValues) {
-            if (userInput == x) {
+
+        //we check if this is something the user has already guessed
+        bool alreadyGuessed = false;
+        for (int& x : playerdata.revealedCardIndexes) {
+            //we subtract 1 because we subtract 1 from the input
+            if ((userInput - 1) == x) {
+                //this is inside a for loop, so we have to bring a variable outside of it
+                //to affect the while loop.
                 std::cout << "You've already guessed that! Try again: ";
-                continue;
+                alreadyGuessed = true;
+                break;
             }
         }
+        if (alreadyGuessed) {
+            continue;
+        }
+
         //if it's none of those, it's valid
         break;
     }
     return userInput;
 }
 
+//input the original values
+void gameLoop(GameValues& playerdata) {
+    //sets temporary visibility to all visible cards
+    playerdata.temporarilyVisibleCards = playerdata.visibleCards;
+    printInterface(playerdata);
+
+    //ask for first card to check
+    std::cout << "Enter your first card to check: ";
+    //gets user input. This is the index
+    const int firstCardIndex = (inputAndValidateForBoard(1, playerdata.allGameCards.size(), playerdata) - 1);
+    //Sets that card to a variable
+    const std::string firstCard = playerdata.allGameCards.at(firstCardIndex);
+    //Puts that card in temporary visibility
+    playerdata.temporarilyVisibleCards.at(firstCardIndex) = firstCard;
+    //puts it in your guessed cards list
+    playerdata.revealedCardIndexes.push_back(firstCardIndex);
+
+    printInterface(playerdata);
+
+    //ask for second card to check
+    std::cout << "Enter your second card to check: ";
+    //get user input.
+    const int secondCardIndex = (inputAndValidateForBoard(1, playerdata.allGameCards.size(), playerdata) - 1);
+    //put that card in a variable
+    const std::string secondCard = playerdata.allGameCards.at(secondCardIndex);
+    //puts that card in temporary visibility
+    playerdata.temporarilyVisibleCards.at(secondCardIndex) = secondCard;
+    //saves that to your guessed cards list
+    playerdata.revealedCardIndexes.push_back(secondCardIndex);
+
+    printInterface(playerdata);
+
+
+    //compare the ranks of them. If they are the same, it says so.
+    if (firstCard.at(1) == secondCard.at(1)) {
+        //the user guessed right, so the values will be copied to the visible cards.
+        playerdata.visibleCards.at(firstCardIndex) = firstCard;
+        playerdata.visibleCards.at(secondCardIndex) = secondCard;
+        //do NOT remove the revealed card indexes
+        std::cout << "It's a match! Press any key to continue: ";
+    } else {
+        //Remove the guesses from your list of previously guessed cards
+        playerdata.revealedCardIndexes.erase(find(playerdata.revealedCardIndexes.begin(), playerdata.revealedCardIndexes.end(), firstCardIndex));
+        playerdata.revealedCardIndexes.erase(find(playerdata.revealedCardIndexes.begin(), playerdata.revealedCardIndexes.end(), secondCardIndex));
+        std::cout << "Not a match. Press any key to continue: ";
+    }
+
+    //ignores the last input and stalls the screen until the user types
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    std::string dummyInput = "";
+    std::getline(std::cin, dummyInput);
+    std::cout << '\n';
+}
+
 int main() {
     CardDeck a;
+    GameValues playerdata;
     //initializes and creates the deck
     a.makeDeck();
 
     //makes game cards
-    std::vector<std::string> allGameCards = a.drawRandomCards(24);
+    playerdata.allGameCards = a.drawRandomCards(24);
+
     //creates a separate vector named visibleCards which is set to back facing cards
-    std::vector<std::string> visibleCards;
-    for (std::string& x : allGameCards) {
-        visibleCards.push_back("nn");
+    for (std::string& x : playerdata.allGameCards) {
+        playerdata.visibleCards.push_back("nn");
     }
 
-    int userInput;
-    std::vector<std::string> temporaryVisibility;
-    while (visibleCards != allGameCards) {
-        //sets temporary visibility to all visible cards
-        temporaryVisibility = visibleCards;
-        printInterface(visibleCards);
-
-        //ask for first card to check
-        std::cout << "Enter your first card to check: ";
-        //gets user input. This is the index
-        const int firstCardIndex = (inputAndValidateForBoard(1, allGameCards.size(), {0}) - 1);
-        //Puts that card in temporary visibility
-        temporaryVisibility.at(firstCardIndex) = allGameCards.at(firstCardIndex);
-        printInterface(temporaryVisibility);
-
-        //ask for second card to check
-        std::cout << "Enter your second card to check: ";
-        //get user input.
-        const int secondCardIndex = (inputAndValidateForBoard(1, allGameCards.size(), {firstCardIndex}) - 1);
-        //puts that card in temporary visibility
-        temporaryVisibility.at(secondCardIndex) = allGameCards.at(secondCardIndex);
-        printInterface(temporaryVisibility);
-
-        //grabs the two cards
-        const std::string firstCard = allGameCards.at(firstCardIndex);
-        const std::string secondCard = allGameCards.at(secondCardIndex);
-
-        //compare the ranks of them. If they are the same, it says so.
-        if (firstCard.at(1) == secondCard.at(1)) {
-            //the user guessed right, so the values will be copied to the visible cards.
-            visibleCards.at(firstCardIndex) = firstCard;
-            visibleCards.at(secondCardIndex) = secondCard;
-            std::cout << "It's a match! Press any key to continue: ";
-        } else {
-            std::cout << "Not a match. Press any key to continue: ";
-        }
-        //ignores the last input and stalls the screen until the user types
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::string dummyInput = "";
-            std::getline(std::cin, dummyInput);
-            std::cout << '\n';
+    while (playerdata.visibleCards != playerdata.allGameCards) {
+        gameLoop(playerdata);
     }
     return 0;
 }
