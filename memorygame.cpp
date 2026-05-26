@@ -5,6 +5,7 @@
  * TODO:
  *      1. Make the random generation always winnable
  *          (currently, there can be cards with no matches)
+ *          (Done!!)
  *      2. Add a title screen and menu asking how many cards
  *      3. Create a better way of picking cards
  *          (the numbered system does not work very well. An ordered pair system would be nice)
@@ -90,6 +91,18 @@ class CardDeck {
             deck = deckThatHasBeenShuffled;
             return 0;
         }
+
+        std::string findFromRankAndDelete(char rank) {
+            std::string foundCard;
+            for (std::string x : deck) {
+                if (x.at(1) == rank) {
+                    foundCard = x;
+                    deck.erase(find(deck.begin(), deck.end(), x));
+                    return foundCard;
+                }
+            }
+            return "No Card Found";
+        }
 };
 
 struct GameValues {
@@ -97,7 +110,6 @@ struct GameValues {
     std::vector<std::string> visibleCards;
     std::vector<std::string> temporarilyVisibleCards;
     std::vector<int> revealedCardIndexes;
-    
 };
 
 /**
@@ -351,6 +363,67 @@ void gameLoop(GameValues& playerdata) {
     std::cout << '\n';
 }
 
+//make function which checks for an unsolvable board
+//run through the entire game board and check if there is a matching card. If so, delete both.
+//What's left are the cards which do not have a match.
+//Then, if there are more than one, take one of the remaining cards and find another card in the remianing deck which does match.
+//If not, then there is an odd amount of cards; delete it. 
+//Returns 0
+int checkForSolvability(GameValues& playerdata, CardDeck& deck) {
+    std::vector<std::string> copyOfCards = playerdata.allGameCards;
+    std::vector<std::string> cardsWithoutMatch;
+
+    //Go through each entry in the list of cards. Check it with every other value. 
+    //If there is a match, stop and delete both cards.
+    //If not, then add it to cardsWithoutMatch and delete.
+    while (0 < copyOfCards.size()) {
+        char firstCardRank = copyOfCards.at(0).at(1); //the rank of the first card
+        for (std::string x : copyOfCards) {
+            if (x.at(1) == firstCardRank) {
+                //only erase if x is not the card.
+                if (x != copyOfCards.at(0)) {
+                    //erase where x is 
+                    copyOfCards.erase(find(copyOfCards.begin(), copyOfCards.end(), x));
+                    //erase the first element
+                    copyOfCards.erase(copyOfCards.begin());
+                    break;
+                }
+            }
+        }
+        //if it gets through the for loop, there are no matching cards.
+        //Add it to the list of cards without a match and erase it.
+        cardsWithoutMatch.push_back(copyOfCards.at(0));
+        copyOfCards.erase(copyOfCards.begin());
+    }
+
+    //checks if the number of cards is odd
+    if ((playerdata.allGameCards.size() % 2) != 0) {
+        //If it's odd, make it even by deleting a card without a match.
+        //Finds where the first card without a match it and deletes it.
+        playerdata.allGameCards.erase(find(playerdata.allGameCards.begin(), playerdata.allGameCards.end(), cardsWithoutMatch.at(0)));
+        //then, delete it from the list of unmatched cards.
+        cardsWithoutMatch.erase(cardsWithoutMatch.begin());
+    }
+
+    //Find a card that does match, and replace the card after
+    while (0 < cardsWithoutMatch.size()) {
+        //Look for a card in the remaining deck which matches the rank of the first card.
+        std::string firstCard = cardsWithoutMatch.at(0);
+        std::string newCard = deck.findFromRankAndDelete(firstCard.at(1));
+
+        //erases the second card without match from the original deck
+        playerdata.allGameCards.erase(find(playerdata.allGameCards.begin(), playerdata.allGameCards.end(), cardsWithoutMatch.at(1)));
+        //adds the new card
+        playerdata.allGameCards.push_back(newCard);
+
+        //erase the first two cards
+        cardsWithoutMatch.erase(cardsWithoutMatch.begin());
+        cardsWithoutMatch.erase(cardsWithoutMatch.begin());
+    }
+
+    return 0;
+}
+
 int main() {
     CardDeck a;
     GameValues playerdata;
@@ -358,7 +431,9 @@ int main() {
     a.makeDeck();
 
     //makes game cards
-    playerdata.allGameCards = a.drawRandomCards(24);
+    playerdata.allGameCards = a.drawRandomCards(26);
+
+    checkForSolvability(playerdata, a);
 
     //creates a separate vector named visibleCards which is set to back facing cards
     for (std::string& x : playerdata.allGameCards) {
@@ -370,41 +445,3 @@ int main() {
     }
     return 0;
 }
-
-
-/*
-Card design:
-╭─────╮
-│2    │
-│ 0_0 │
-│    ♣│
-╰─────╯
-
-Top part:
-╭─────╮
-
-Bottom part:
-╰─────╯
-
-Middle part eyes:
-│ 0_0 │ 1
-│ *_* │ 2
-│ X_X │ 3
-│ -_- │ 4
-│ o_0 │ 5
-│ L_L │ 6
-│ >_< │ 7
-│ <_< │ 8
-│ /_/ │ 9
-│ @_@ │ 0
-│ O_- │ j
-│ ;_; │ q
-│ $_$ │ k
-│ =_= │ a
-
-mouth:
-│ 0_0 │ c
-│ 0.0 │ s
-│ 0w0 │ h
-│ 0v0 │ d
-*/
