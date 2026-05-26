@@ -101,6 +101,7 @@ class CardDeck {
                     return foundCard;
                 }
             }
+            //if it gets through the whole list without finding one, returns error.
             return "No Card Found";
         }
 };
@@ -110,6 +111,7 @@ struct GameValues {
     std::vector<std::string> visibleCards;
     std::vector<std::string> temporarilyVisibleCards;
     std::vector<int> revealedCardIndexes;
+    int userInputCardsToPlay;
 };
 
 /**
@@ -424,15 +426,30 @@ int checkForSolvability(GameValues& playerdata, CardDeck& deck) {
     return 0;
 }
 
+void initializeAndAsk(GameValues& playerdata) {
+    std::cout << "Welcome to the memory card matching game!\nHow many cards do you want to match for?" << std::endl;
+    std::cout << "Enter a number betweeen 2 and 54. Odd numbers are subtracted by 1: ";
+    GameValues null;
+    int userInput = inputAndValidateForBoard(2, 54, playerdata);
+    if ((userInput % 2) != 0) {
+        userInput -= 1;
+    }
+    playerdata.userInputCardsToPlay = userInput;
+}
+
 int main() {
     CardDeck a;
     GameValues playerdata;
+
+    initializeAndAsk(playerdata);
+
     //initializes and creates the deck
     a.makeDeck();
 
     //makes game cards
-    playerdata.allGameCards = a.drawRandomCards(26);
+    playerdata.allGameCards = a.drawRandomCards(playerdata.userInputCardsToPlay);
 
+    //makes sure it's solvable and modifies it if it's not.
     checkForSolvability(playerdata, a);
 
     //creates a separate vector named visibleCards which is set to back facing cards
@@ -443,5 +460,7 @@ int main() {
     while (playerdata.visibleCards != playerdata.allGameCards) {
         gameLoop(playerdata);
     }
+
+    std::cout << "ya did it ya dingus, ya really did it. ya get a thumbs up from me." << std::endl;
     return 0;
 }
