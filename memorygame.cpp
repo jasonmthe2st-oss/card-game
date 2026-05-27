@@ -7,6 +7,7 @@
  *          (currently, there can be cards with no matches)
  *          (Done!!)
  *      2. Add a title screen and menu asking how many cards
+ *          (Done!!)
  *      3. Create a better way of picking cards
  *          (the numbered system does not work very well. An ordered pair system would be nice)
  */
@@ -27,6 +28,9 @@
 //these two for time
 #include <stdlib.h>
 #include <ctime>
+
+#include <chrono>
+#include <thread>
 
 
 class CardDeck {
@@ -112,6 +116,7 @@ struct GameValues {
     std::vector<std::string> temporarilyVisibleCards;
     std::vector<int> revealedCardIndexes;
     int userInputCardsToPlay;
+    int cardsPerRow;
 };
 
 /**
@@ -210,7 +215,7 @@ std::string printCardChunk(std::string cardToPrint,  int rowToPrint) {
  * Parameters: A vector containing a list of cards.
  * Description: Draws cards to the screen in rows of 5.
  */
-void printCards(std::vector<std::string> cardsToPrint) {
+void printCards(std::vector<std::string> cardsToPrint, GameValues& playerdata) {
     const double rootOnePointFive = sqrt(3.0 / 2.0);
     /**
      * The cards per row is defined by this function:
@@ -218,24 +223,24 @@ void printCards(std::vector<std::string> cardsToPrint) {
      * 6 -> 3, 24 -> 6, 96 -> 12
      * Takes the ceiling of it so it's not less than 1
      */
-    const int cardsPerRow = ceil(rootOnePointFive * pow(cardsToPrint.size(), 0.5));
+    playerdata.cardsPerRow = ceil(rootOnePointFive * pow(cardsToPrint.size(), 0.5));
     //finds the amount of rows of 5 cards. ex. if 15, then 3
-    const int normalRows = cardsToPrint.size() / cardsPerRow;
+    const int normalRows = cardsToPrint.size() / playerdata.cardsPerRow;
     //If the amount of cards is not a multiple of 5, it stores the remainder here
-    const int cardsInLastRow = cardsToPrint.size() % cardsPerRow;
+    const int cardsInLeftoverRow = cardsToPrint.size() % playerdata.cardsPerRow;
 
     //repeats for the amount of rows of 5 cards
     for (int rowIndex = 0; rowIndex < normalRows; rowIndex++) {
         //Makes an index of the 5 cards we're working with
         std::vector<std::string> listOfFiveCards;
-        int startIndex = rowIndex * cardsPerRow;
-        for (int j = startIndex; j < startIndex + cardsPerRow; j++) {
+        int startIndex = rowIndex * playerdata.cardsPerRow;
+        for (int j = startIndex; j < startIndex + playerdata.cardsPerRow; j++) {
             listOfFiveCards.push_back(cardsToPrint.at(j));
         }
 
         //prints each chunk of each card
         for (int row = 1; row <= 5; row++) {
-            for (int card = 0; card < cardsPerRow; card++) {
+            for (int card = 0; card < playerdata.cardsPerRow; card++) {
                 std::cout << printCardChunk(listOfFiveCards.at(card), row) << " ";
             }
             std::cout << "\n";
@@ -244,7 +249,7 @@ void printCards(std::vector<std::string> cardsToPrint) {
     }
 
     //then, it prints the last cards of the remaining uneven row
-    int startIndex = normalRows * cardsPerRow;
+    int startIndex = normalRows * playerdata.cardsPerRow;
     if (startIndex < static_cast<int>(cardsToPrint.size())) {
         for (int row = 1; row <= 5; row++) {
             for (int card = startIndex; card < static_cast<int>(cardsToPrint.size()); card++) {
@@ -261,8 +266,8 @@ void printCards(std::vector<std::string> cardsToPrint) {
  * Description: Clears the screen, displays a menu, and runs the function to draw the playing field. 
  */
 void printInterface(GameValues& playerdata) {
-    std::cout << "\x1b[2J\x1b[H" << "Cards are counted from left to right, top to bottom." << std::endl;
-    printCards(playerdata.temporarilyVisibleCards);
+    std::cout << "\x1b[2J\x1b[H" << "Input works on a row and column system.\nInput 'row,column' for the card you want to check." << std::endl;
+    printCards(playerdata.temporarilyVisibleCards, playerdata);
     std::cout << std::endl;
 }
 
@@ -311,6 +316,165 @@ int inputAndValidateForBoard(const int minValue, const int maxValue, GameValues&
     return userInput;
 }
 
+/**
+ * Function: orderedPairValidate
+ * Parameters: object of playerdata
+ * Description: Takes user input and validates it for ordered pair input:
+ *      1. Checks if the input is a valid string
+ *      2. Checks if there are any characters other than numbers and commas
+ *      3. Checks if there are zero or more than one comma
+ *      4. Checks if the comma is at the end or beginning of the string
+ *          (forcing users to input numbers before and after comma)
+ *      5. Separates the string into the integers before and after the comma
+ *      6. Converts these row and column values into the associated data index value
+ *          (cards per row * (rows - 1)) + columns
+ *      7. Checks if this index is between 1 and the size of its associated vector
+ *      8. Checks if this index is in the list of already guessed values
+ */
+int orderedPairValidate(GameValues& playerdata) {
+    //Take string input and separate them into int variables. 
+    //(1 - row * cards per row) + column is the index
+    //If it is outside the range of the size, throw error. 
+
+    //Take string input
+    std::string userInput;
+    int finalindex;
+    while (true) {
+        //checks for invalid string
+        if (!(std::cin >> userInput)) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); //ignores some bullshit so it works
+            std::cout << "Input error! Try again: ";
+            continue;
+        }
+
+        //Checks if there are any characters other than numbers and one comma
+        bool invalidCharacter = false;
+        int numberOfCommas = 0;
+        for (int i = 0; i < userInput.length(); i++) {
+            if (userInput.at(i) == ',') {
+                numberOfCommas += 1;
+            }
+            //if it's not a number and not a comma, it's invalid
+            if (((userInput.at(i) < '1') || (userInput.at(i) > '9')) && (userInput.at(i) != ',')) {
+                invalidCharacter = true;
+                break;
+            }
+        }
+        //If there is an invalid character or not 1 comma, it's invalid.
+        if (invalidCharacter || (numberOfCommas != 1)) {
+            std::cout << "Invalid character or input! Try again: ";
+            continue;
+        }
+
+        //Checks if the comma is at the end or the beginning
+        if ((userInput.at(0) == ',') || (userInput.at(userInput.size() - 1) == ',')) {
+            std::cout << "Must input a value for x and y! Try again: ";
+            continue;
+        }
+
+        //by now, it should be a valid input.
+        //Now, search through and return the index.
+
+        //Separate the input into stuff before comma, and stuff after.
+        
+        //Takes the value before the comma and sets it to the row
+        std::string dummy = ""; //to store
+        for (char& x : userInput) {
+            if (x == ',') {
+                break;
+            } else {
+                dummy.push_back(x);
+            }
+        }
+        const int row = std::stoi(dummy);
+
+        //Takes the value after the comma and sets it to the column
+        dummy = "";
+        bool foundComma = false;
+        for (char& x : userInput) {
+            if (foundComma) {
+                dummy.push_back(x);
+            }
+            if (x == ',') {
+                foundComma = true;
+            }
+        }
+        const int column = std::stoi(dummy);
+
+        //check to see if these values are in the valid range
+        //2 cases: where the max column length is equal to cards per row, and one where it's in the leftover row
+        const int numberOfFullRows = playerdata.allGameCards.size() / playerdata.cardsPerRow;
+        const int cardsInLeftoverRow = playerdata.allGameCards.size() % playerdata.cardsPerRow;
+        int numberOfRows;
+        if (cardsInLeftoverRow == 0) {
+            numberOfRows = numberOfFullRows;
+        } else {
+            numberOfRows = numberOfFullRows + 1;
+        }
+        //Checks if the row is in range
+        if ((row < 1) || (row > numberOfRows)) {
+            std::cout << "Row not in range! Try again: ";
+            continue;
+        }
+
+        if ((row == numberOfRows) && (cardsInLeftoverRow != 0)) {
+            //the columns must be less than the leftover cards
+            if ((column > cardsInLeftoverRow) || (column <= 0)) {
+                std::cout << "Column not in range! Try again: ";
+                continue;
+            }
+        } else {
+            //The columns must be less than the cards per row
+            if ((column > playerdata.cardsPerRow) || (column <= 0)) {
+                std::cout << "Column not in range! Try again: ";
+                continue;
+            }
+        }
+
+        //we subtract 1 from the row because we want to add rows * user specified rows - 1 + user specified column
+        finalindex = (playerdata.cardsPerRow * (row - 1)) + column;
+
+        //now, we check to see if the index is between the right values.
+        //Should already be the case, but we check just in case.
+        if ((finalindex < 1) || (finalindex > playerdata.allGameCards.size())) {
+            std::cout << "Input not in range! Try again: ";
+            continue;
+        }
+
+        //now, we check to see if the user already guessed the input.
+        bool alreadyGuessed = false;
+        for (int& x : playerdata.revealedCardIndexes) {
+            //we subtract 1 because we subtract 1 from the input
+            if ((finalindex - 1) == x) {
+                //this is inside a for loop, so we have to bring a variable outside of it
+                //to affect the while loop.
+                std::cout << "You've already guessed that! Try again: ";
+                alreadyGuessed = true;
+                break;
+            }
+        }
+        if (alreadyGuessed) {
+            continue;
+        }
+
+        using namespace std;
+        std::cout << "Inputted rows: " << row << std::endl;
+        std::cout << "Inputted column: " << column << std::endl;
+        std::cout << "Calculated index: " << finalindex << std::endl;
+        std::cout << "Number of rows: " << numberOfRows<< std::endl;
+        std::cout << "Board size: " << playerdata.allGameCards.size() << std::endl;
+        std::cout << "Card about to reveal: " << playerdata.allGameCards.at(finalindex - 1) << std::endl;
+        for (std::string& x : playerdata.allGameCards) {
+            std::cout << x << " ";
+        }
+        this_thread::sleep_for(chrono::seconds(10));
+        break; 
+    }
+
+    return finalindex;
+}
+
 //input the original values
 void gameLoop(GameValues& playerdata) {
     //sets temporary visibility to all visible cards
@@ -320,7 +484,7 @@ void gameLoop(GameValues& playerdata) {
     //ask for first card to check
     std::cout << "Enter your first card to check: ";
     //gets user input. This is the index
-    const int firstCardIndex = (inputAndValidateForBoard(1, playerdata.allGameCards.size(), playerdata) - 1);
+    const int firstCardIndex = (orderedPairValidate(playerdata) - 1);
     //Sets that card to a variable
     const std::string firstCard = playerdata.allGameCards.at(firstCardIndex);
     //Puts that card in temporary visibility
@@ -333,7 +497,7 @@ void gameLoop(GameValues& playerdata) {
     //ask for second card to check
     std::cout << "Enter your second card to check: ";
     //get user input.
-    const int secondCardIndex = (inputAndValidateForBoard(1, playerdata.allGameCards.size(), playerdata) - 1);
+    const int secondCardIndex = (orderedPairValidate(playerdata) - 1);
     //put that card in a variable
     const std::string secondCard = playerdata.allGameCards.at(secondCardIndex);
     //puts that card in temporary visibility
@@ -428,9 +592,9 @@ int checkForSolvability(GameValues& playerdata, CardDeck& deck) {
 
 void initializeAndAsk(GameValues& playerdata) {
     std::cout << "Welcome to the memory card matching game!\nHow many cards do you want to match for?" << std::endl;
-    std::cout << "Enter a number betweeen 2 and 54. Odd numbers are subtracted by 1: ";
+    std::cout << "Enter a number betweeen 2 and 52. Odd numbers are subtracted by 1: ";
     GameValues null;
-    int userInput = inputAndValidateForBoard(2, 54, playerdata);
+    int userInput = inputAndValidateForBoard(2, 52, playerdata);
     if ((userInput % 2) != 0) {
         userInput -= 1;
     }
