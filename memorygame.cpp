@@ -29,9 +29,6 @@
 #include <stdlib.h>
 #include <ctime>
 
-#include <chrono>
-#include <thread>
-
 
 class CardDeck {
     private:
@@ -58,7 +55,7 @@ class CardDeck {
 
         //prints every card in the deck
         void printDeck() {
-            int i = 0;
+            int i = 1;
             for (std::string& x : deck) {
                 std::cout << x << " " << i << std::endl;
                 i++;
@@ -105,8 +102,15 @@ class CardDeck {
                     return foundCard;
                 }
             }
-            //if it gets through the whole list without finding one, returns error.
-            return "No Card Found";
+            //if it gets through the whole list without finding one, it just finds a card and returns it.
+            //(i do not know why it does not find one sometimes)
+            foundCard = deck.at(0);
+            deck.erase(deck.begin());
+            return foundCard;
+        }
+
+        int findDeckSize() {
+            return deck.size();
         }
 };
 
@@ -458,17 +462,6 @@ int orderedPairValidate(GameValues& playerdata) {
             continue;
         }
 
-        using namespace std;
-        std::cout << "Inputted rows: " << row << std::endl;
-        std::cout << "Inputted column: " << column << std::endl;
-        std::cout << "Calculated index: " << finalindex << std::endl;
-        std::cout << "Number of rows: " << numberOfRows<< std::endl;
-        std::cout << "Board size: " << playerdata.allGameCards.size() << std::endl;
-        std::cout << "Card about to reveal: " << playerdata.allGameCards.at(finalindex - 1) << std::endl;
-        for (std::string& x : playerdata.allGameCards) {
-            std::cout << x << " ";
-        }
-        this_thread::sleep_for(chrono::seconds(10));
         break; 
     }
 
@@ -571,8 +564,8 @@ int checkForSolvability(GameValues& playerdata, CardDeck& deck) {
         cardsWithoutMatch.erase(cardsWithoutMatch.begin());
     }
 
-    //Find a card that does match, and replace the card after
-    while (0 < cardsWithoutMatch.size()) {
+    //Find a card that does match, and replace the card after)
+    while ((0 < cardsWithoutMatch.size()) && (0 < deck.findDeckSize())) {
         //Look for a card in the remaining deck which matches the rank of the first card.
         std::string firstCard = cardsWithoutMatch.at(0);
         std::string newCard = deck.findFromRankAndDelete(firstCard.at(1));
@@ -584,7 +577,10 @@ int checkForSolvability(GameValues& playerdata, CardDeck& deck) {
 
         //erase the first two cards
         cardsWithoutMatch.erase(cardsWithoutMatch.begin());
-        cardsWithoutMatch.erase(cardsWithoutMatch.begin());
+        //prevents the program from erasing a card that's not there
+        if (0 < cardsWithoutMatch.size()) {
+            cardsWithoutMatch.erase(cardsWithoutMatch.begin());
+        }
     }
 
     return 0;
