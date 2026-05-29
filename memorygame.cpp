@@ -597,6 +597,22 @@ void initializeAndAsk(GameValues& playerdata) {
     playerdata.userInputCardsToPlay = userInput;
 }
 
+bool askToPlayAgain() {
+    std::cout << "Congratulations, you won! Would you like to play again?\n"
+        "[1]: Yes\n"
+        "[2]: No\n"
+        "Please choose from the list above: " << std::endl;
+
+    GameValues dummy; //this is created to have a blank list of values 
+                      //so I don't have to make another input validation function
+    const int userChoice = inputAndValidateForBoard(1, 2, dummy);
+    if (userChoice == 1) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 int main() {
     CardDeck a;
     GameValues playerdata;
@@ -621,6 +637,9 @@ int main() {
         gameLoop(playerdata);
     }
 
-    std::cout << "ya did it ya dingus, ya really did it. ya get a thumbs up from me." << std::endl;
-    return 0;
+    if (askToPlayAgain()) {
+        main();
+    } else {
+        std::cout << "Exiting..." << std::endl;
+    }
 }
