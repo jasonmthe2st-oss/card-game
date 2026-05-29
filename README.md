@@ -5,7 +5,9 @@ This is a quick little game made in c++ which is a quick memory matching game us
 ## Card Display System
 
 I created a little display system for cards that I'm very proud of! The face on the card corresponds to the value of the card; the eyes correspond to the rank of the card and the mouth corresponds to the suit. I will likely use this system for future projects.
+
 <img width="107" height="71" alt="image" src="https://github.com/user-attachments/assets/b49c40f6-6a9d-4337-833c-21cc98614f17" />
+
 <sub>Yes, UwU is a card. Since 8s are UU and hearts are w, UwU is possible. I'm not sorry.</sub>
 
 
